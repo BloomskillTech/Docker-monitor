@@ -1,0 +1,1364 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>labs Container Monitor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --border-color: #e5e7eb;
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1f2937;
+            --bg-secondary: #111827;
+            --text-primary: #f9fafb;
+            --text-secondary: #d1d5db;
+            --border-color: #374151;
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3);
+        }
+
+        body {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: -200px 0;
+            }
+
+            100% {
+                background-position: calc(200px + 100%) 0;
+            }
+        }
+
+        .fade-in-initial {
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        .slide-down {
+            animation: slideDown 0.3s ease-out;
+        }
+
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+
+        .dropdown-open {
+            max-height: 300px;
+            opacity: 1;
+        }
+
+        .dropdown-closed {
+            max-height: 0;
+            opacity: 0;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+
+        .mini-chart-container {
+            position: relative;
+            height: 40px;
+            width: 100px;
+        }
+
+        .loading-spinner {
+            border: 3px solid var(--border-color);
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .stat-card {
+            transition: all 0.3s ease;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow);
+        }
+
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 8px;
+        }
+
+        [data-theme="dark"] .skeleton {
+            background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+            background-size: 200% 100%;
+        }
+
+        .skeleton-card {
+            height: 120px;
+        }
+
+        .skeleton-chart {
+            height: 300px;
+        }
+
+        .skeleton-table-row {
+            height: 60px;
+            margin-bottom: 8px;
+        }
+
+        .theme-transition {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+
+        .glass-effect {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        [data-theme="dark"] .glass-effect {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .table-row-hover {
+            transition: all 0.2s ease;
+        }
+
+        .table-row-hover:hover {
+            background: rgba(59, 130, 246, 0.05);
+            transform: translateX(4px);
+        }
+
+        [data-theme="dark"] .table-row-hover:hover {
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .metric-trend {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .trend-up {
+            color: #ef4444;
+        }
+
+        .trend-down {
+            color: #10b981;
+        }
+
+        .trend-stable {
+            color: #6b7280;
+        }
+
+        .io-value {
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .chart-container {
+                height: 250px;
+            }
+
+            .mini-chart-container {
+                height: 30px;
+                width: 80px;
+            }
+        }
+    </style>
+</head>
+
+<body class="theme-transition bg-gray-50 dark:bg-gray-900" data-theme="light">
+    <!-- Header -->
+    <header class="bg-white dark:bg-gray-800 shadow-lg border-b border-gray-200 dark:border-gray-700 theme-transition">
+        <div class="container mx-auto px-4 sm:px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <i class="fab fa-docker text-2xl sm:text-3xl text-blue-600"></i>
+                    <h1 class="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white">labs Monitor</h1>
+                </div>
+                <div class="flex items-center space-x-2 sm:space-x-4">
+                    <!-- Theme Toggle -->
+                    <button id="themeToggle"
+                        class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200">
+                        <i class="fas fa-sun text-yellow-500 dark:hidden"></i>
+                        <i class="fas fa-moon text-blue-400 hidden dark:block"></i>
+                    </button>
+
+                    <div class="hidden sm:flex items-center space-x-2">
+                        <div class="w-3 h-3 bg-green-500 rounded-full pulse-animation"></div>
+                        <span class="text-sm text-gray-600 dark:text-gray-300">Live</span>
+                    </div>
+
+                    <button id="refreshBtn"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg transition-colors duration-200 flex items-center space-x-2">
+                        <i class="fas fa-sync-alt text-sm"></i>
+                        <span class="hidden sm:inline">Refresh</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        <!-- Controls Section -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 sm:p-6 mb-6 sm:mb-8 theme-transition">
+            <h2 class="text-lg sm:text-xl font-semibold text-gray-800 dark:text-white mb-4 flex items-center">
+                <i class="fas fa-filter mr-2 text-blue-600"></i>
+                Container Selection
+            </h2>
+
+            <!-- Dropdown Container -->
+            <div class="relative">
+                <div
+                    class="flex flex-col sm:flex-row items-stretch sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
+                    <!-- Search Input -->
+                    <div class="flex-1 relative">
+                        <input type="text" id="searchInput" placeholder="Search containers..."
+                            class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 pl-10 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    </div>
+
+                    <!-- Dropdown Toggle -->
+                    <button id="dropdownToggle"
+                        class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 px-6 py-3 rounded-lg transition-colors duration-200 flex items-center space-x-2 min-w-[200px] justify-between">
+                        <span id="dropdownText" class="text-gray-700 dark:text-gray-300">Select Containers</span>
+                        <i class="fas fa-chevron-down transition-transform duration-200 text-gray-500"
+                            id="dropdownIcon"></i>
+                    </button>
+                </div>
+
+                <!-- Dropdown Menu -->
+                <div id="dropdownMenu"
+                    class="absolute top-full left-0 right-0 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg mt-2 shadow-lg z-10 overflow-hidden transition-all duration-300 dropdown-closed">
+                    <div class="p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Available
+                                Containers</span>
+                            <button id="selectAllBtn"
+                                class="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">Select
+                                All</button>
+                        </div>
+                        <div id="containerList" class="space-y-2 max-h-48 overflow-y-auto">
+                            <!-- Container checkboxes will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Selected Containers Display -->
+            <div id="selectedContainers" class="mt-4 hidden">
+                <div class="flex items-center space-x-2 mb-2">
+                    <i class="fas fa-check-circle text-green-600"></i>
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Selected Containers:</span>
+                </div>
+                <div id="selectedList" class="flex flex-wrap gap-2">
+                    <!-- Selected container tags will appear here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Auto-refresh indicator -->
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-2 sm:space-y-0">
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-2">
+                    <div class="w-3 h-3 bg-green-500 rounded-full pulse-animation"></div>
+                    <span class="text-sm text-gray-600 dark:text-gray-400">Auto-refresh: 10s</span>
+                </div>
+                <div id="lastUpdated" class="text-sm text-gray-500 dark:text-gray-400">
+                    Last updated: Never
+                </div>
+            </div>
+            <div id="nextRefresh" class="text-sm text-gray-500 dark:text-gray-400">
+                Next refresh in: 10s
+            </div>
+        </div>
+
+        <!-- Stats Overview -->
+        <div id="statsOverview" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+            <!-- Stats cards will be populated here -->
+        </div>
+
+        <!-- Skeleton for Stats Overview (Initial Load Only) -->
+        <div id="statsOverviewSkeleton"
+            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+            <div class="skeleton skeleton-card"></div>
+            <div class="skeleton skeleton-card"></div>
+            <div class="skeleton skeleton-card"></div>
+            <div class="skeleton skeleton-card"></div>
+        </div>
+
+        <!-- Container Details Table -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 sm:p-6 mb-6 sm:mb-8 theme-transition">
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4 flex items-center">
+                <i class="fas fa-table mr-2 text-purple-600"></i>
+                Container Details with Trends
+            </h3>
+            <div class="overflow-x-auto">
+                <div
+                    class="grid grid-cols-[220px_220px_220px_200px_200px_80px] text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider bg-gray-50 dark:bg-gray-700 border-b border-gray-300 dark:border-gray-600">
+                    <div class="px-4 py-3">Container</div>
+                    <div class="px-4 py-3">CPU Usage</div>
+                    <div class="px-4 py-3">Memory Usage</div>
+                    <div class="px-4 py-3 hidden lg:block">Network I/O</div>
+                    <div class="px-4 py-3 hidden lg:block">Block I/O</div>
+                    <div class="px-4 py-3">PIDs</div>
+                </div>
+                <div id="statsTableBody" class="divide-y divide-gray-200 dark:divide-gray-700">
+                    <!-- Row entries will be inserted here dynamically using divs matching the column structure -->
+                </div>
+            </div>
+
+            <!-- Skeleton for table (Initial Load Only) -->
+            <div id="tableBodySkeleton" class="space-y-2 mt-4">
+                <div class="skeleton skeleton-table-row"></div>
+                <div class="skeleton skeleton-table-row"></div>
+                <div class="skeleton skeleton-table-row"></div>
+                <div class="skeleton skeleton-table-row"></div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 mb-6 sm:mb-8">
+            <!-- CPU Usage Chart -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 sm:p-6 theme-transition">
+                <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4 flex items-center">
+                    <i class="fas fa-microchip mr-2 text-red-600"></i>
+                    CPU Usage Distribution
+                </h3>
+                <div class="chart-container">
+                    <canvas id="cpuChart"></canvas>
+                </div>
+                <div id="cpuChartSkeleton" class="skeleton skeleton-chart hidden"></div>
+            </div>
+
+            <!-- Memory Usage Chart -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 sm:p-6 theme-transition">
+                <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4 flex items-center">
+                    <i class="fas fa-memory mr-2 text-green-600"></i>
+                    Memory Usage Comparison
+                </h3>
+                <div class="chart-container">
+                    <canvas id="memoryChart"></canvas>
+                </div>
+                <div id="memoryChartSkeleton" class="skeleton skeleton-chart hidden"></div>
+            </div>
+        </div>
+
+        <!-- Network and Block I/O Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 mb-6 sm:mb-8">
+            <!-- Network I/O Chart -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 sm:p-6 theme-transition">
+                <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4 flex items-center">
+                    <i class="fas fa-network-wired mr-2 text-blue-600"></i>
+                    Network I/O Trends
+                </h3>
+                <div class="chart-container">
+                    <canvas id="networkChart"></canvas>
+                </div>
+                <div id="networkChartSkeleton" class="skeleton skeleton-chart hidden"></div>
+            </div>
+
+            <!-- Block I/O Chart -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 sm:p-6 theme-transition">
+                <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4 flex items-center">
+                    <i class="fas fa-hdd mr-2 text-orange-600"></i>
+                    Block I/O Trends
+                </h3>
+                <div class="chart-container">
+                    <canvas id="blockChart"></canvas>
+                </div>
+                <div id="blockChartSkeleton" class="skeleton skeleton-chart hidden"></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        class DockerMonitor {
+            constructor() {
+                this.baseUrl = '';
+                this.containers = [];
+                this.selectedContainers = [];
+                this.allStats = [];
+                this.cpuChart = null;
+                this.memoryChart = null;
+                this.networkChart = null;
+                this.blockChart = null;
+                this.miniCharts = {};
+                this.isDropdownOpen = false;
+                this.refreshInterval = null;
+                this.countdownInterval = null;
+                this.refreshCountdown = 10;
+                this.networkHistory = {};
+                this.blockHistory = {};
+                this.cpuHistory = {};
+                this.memoryHistory = {};
+                this.isInitialLoad = true;
+
+                this.init();
+            }
+
+            async init() {
+                this.setupEventListeners();
+                this.initTheme();
+                await this.loadContainers();
+                await this.loadAllStats();
+                this.setupCharts();
+                this.startAutoRefresh();
+                this.isInitialLoad = false;
+            }
+
+            setupEventListeners() {
+                // Theme toggle
+                document.getElementById('themeToggle').addEventListener('click', () => {
+                    this.toggleTheme();
+                });
+
+                // Dropdown toggle
+                document.getElementById('dropdownToggle').addEventListener('click', () => {
+                    this.toggleDropdown();
+                });
+
+                // Search input
+                document.getElementById('searchInput').addEventListener('input', (e) => {
+                    this.filterContainers(e.target.value);
+                });
+
+                // Select all button
+                document.getElementById('selectAllBtn').addEventListener('click', () => {
+                    this.selectAllContainers();
+                });
+
+                // Refresh button
+                document.getElementById('refreshBtn').addEventListener('click', () => {
+                    this.refreshData();
+                });
+
+                // Close dropdown when clicking outside
+                document.addEventListener('click', (e) => {
+                    if (!e.target.closest('.relative')) {
+                        this.closeDropdown();
+                    }
+                });
+            }
+
+            initTheme() {
+                const savedTheme = localStorage.getItem('theme') || 'light';
+                this.setTheme(savedTheme);
+            }
+
+            setTheme(theme) {
+                document.body.setAttribute('data-theme', theme);
+                document.body.className = `theme-transition bg-gray-50 dark:bg-gray-900`;
+
+                if (theme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+
+                localStorage.setItem('theme', theme);
+            }
+
+            toggleTheme() {
+                const currentTheme = document.body.getAttribute('data-theme');
+                const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+                this.setTheme(newTheme);
+
+                // Update charts for theme change
+                setTimeout(() => {
+                    this.updateChartsTheme();
+                }, 100);
+            }
+
+            updateChartsTheme() {
+                const isDark = document.documentElement.classList.contains('dark');
+                const textColor = isDark ? '#f9fafb' : '#1f2937';
+                const gridColor = isDark ? '#374151' : '#e5e7eb';
+
+                // Update all charts with new theme colors
+                [this.cpuChart, this.memoryChart, this.networkChart, this.blockChart].forEach(chart => {
+                    if (chart) {
+                        // Update legend colors
+                        if (chart.options.plugins && chart.options.plugins.legend) {
+                            chart.options.plugins.legend.labels.color = textColor;
+                        }
+
+                        // Update scale colors
+                        if (chart.options.scales) {
+                            Object.keys(chart.options.scales).forEach(scaleKey => {
+                                const scale = chart.options.scales[scaleKey];
+                                if (scale.ticks) scale.ticks.color = textColor;
+                                if (scale.grid) scale.grid.color = gridColor;
+                                if (scale.title) scale.title.color = textColor;
+                            });
+                        }
+
+                        chart.update('none');
+                    }
+                });
+            }
+
+            async loadContainers() {
+                try {
+                    const response = await fetch(`${this.baseUrl}/docker/id`);
+                    this.containers = await response.json();
+                    this.renderContainerList();
+                } catch (error) {
+                    console.error('Error loading containers:', error);
+                    this.showError('Failed to load containers');
+                }
+            }
+
+            async loadAllStats() {
+                if (this.isInitialLoad) {
+                    this.showSkeletons(true);
+                }
+
+                try {
+                    const response = await fetch(`${this.baseUrl}/docker/stats`);
+                    const data = await response.json();
+                    this.allStats = data.stats;
+                    this.updateHistory(this.allStats);
+                    this.renderStats();
+                    this.updateCharts();
+                    this.updateLastUpdated();
+                } catch (error) {
+                    console.error('Error loading stats:', error);
+                    this.showError('Failed to load container stats');
+                } finally {
+                    if (this.isInitialLoad) {
+                        this.showSkeletons(false);
+                    }
+                }
+            }
+
+            async loadSelectedStats() {
+                if (this.selectedContainers.length === 0) {
+                    await this.loadAllStats();
+                    return;
+                }
+
+                try {
+                    const statsPromises = this.selectedContainers.map(container =>
+                        fetch(`${this.baseUrl}/docker/stats?name=${container}`)
+                            .then(response => response.json())
+                            .then(data => data.stats)
+                    );
+
+                    const selectedStats = await Promise.all(statsPromises);
+                    this.allStats = selectedStats;
+                    this.updateHistory(this.allStats);
+                    this.renderStats();
+                    this.updateCharts();
+                    this.updateLastUpdated();
+                } catch (error) {
+                    console.error('Error loading selected stats:', error);
+                    this.showError('Failed to load selected container stats');
+                }
+            }
+
+            renderContainerList() {
+                const containerList = document.getElementById('containerList');
+                containerList.innerHTML = '';
+
+                this.containers.forEach(container => {
+                    const div = document.createElement('div');
+                    div.className = 'flex items-center space-x-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200';
+                    div.innerHTML = `
+                        <input 
+                            type="checkbox" 
+                            id="container-${container}" 
+                            value="${container}"
+                            class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                        >
+                        <label for="container-${container}" class="flex-1 text-sm text-gray-700 dark:text-gray-300 cursor-pointer flex items-center">
+                            <i class="fab fa-docker mr-2 text-blue-600"></i>
+                            ${container}
+                        </label>
+                    `;
+
+                    const checkbox = div.querySelector('input');
+                    checkbox.addEventListener('change', () => {
+                        this.handleContainerSelection(container, checkbox.checked);
+                    });
+
+                    containerList.appendChild(div);
+                });
+            }
+
+            filterContainers(searchTerm) {
+                const containerList = document.getElementById('containerList');
+                const containers = containerList.querySelectorAll('div');
+
+                containers.forEach(container => {
+                    const label = container.querySelector('label').textContent.toLowerCase();
+                    if (label.includes(searchTerm.toLowerCase())) {
+                        container.style.display = 'flex';
+                    } else {
+                        container.style.display = 'none';
+                    }
+                });
+            }
+
+            handleContainerSelection(container, isSelected) {
+                if (isSelected) {
+                    if (!this.selectedContainers.includes(container)) {
+                        this.selectedContainers.push(container);
+                    }
+                } else {
+                    this.selectedContainers = this.selectedContainers.filter(c => c !== container);
+                }
+
+                this.updateSelectedDisplay();
+                this.loadSelectedStats();
+            }
+
+            updateSelectedDisplay() {
+                const selectedDiv = document.getElementById('selectedContainers');
+                const selectedList = document.getElementById('selectedList');
+                const dropdownText = document.getElementById('dropdownText');
+
+                if (this.selectedContainers.length > 0) {
+                    selectedDiv.classList.remove('hidden');
+                    selectedList.innerHTML = '';
+
+                    this.selectedContainers.forEach(container => {
+                        const tag = document.createElement('span');
+                        tag.className = 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs font-medium px-2.5 py-0.5 rounded-full flex items-center space-x-1';
+                        tag.innerHTML = `
+                            <span>${container}</span>
+                            <button onclick="dockerMonitor.removeSelectedContainer('${container}')" class="ml-1 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200">
+                                <i class="fas fa-times text-xs"></i>
+                            </button>
+                        `;
+                        selectedList.appendChild(tag);
+                    });
+
+                    dropdownText.textContent = `${this.selectedContainers.length} Selected`;
+                } else {
+                    selectedDiv.classList.add('hidden');
+                    dropdownText.textContent = 'Select Containers';
+                }
+            }
+
+            removeSelectedContainer(container) {
+                this.selectedContainers = this.selectedContainers.filter(c => c !== container);
+
+                const checkbox = document.getElementById(`container-${container}`);
+                if (checkbox) checkbox.checked = false;
+
+                this.updateSelectedDisplay();
+                this.loadSelectedStats();
+            }
+
+            selectAllContainers() {
+                const checkboxes = document.querySelectorAll('#containerList input[type="checkbox"]');
+                const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = !allChecked;
+                    this.handleContainerSelection(checkbox.value, checkbox.checked);
+                });
+            }
+
+            toggleDropdown() {
+                const dropdown = document.getElementById('dropdownMenu');
+                const icon = document.getElementById('dropdownIcon');
+
+                if (this.isDropdownOpen) {
+                    this.closeDropdown();
+                } else {
+                    dropdown.classList.remove('dropdown-closed');
+                    dropdown.classList.add('dropdown-open', 'slide-down');
+                    icon.style.transform = 'rotate(180deg)';
+                    this.isDropdownOpen = true;
+                }
+            }
+
+            closeDropdown() {
+                const dropdown = document.getElementById('dropdownMenu');
+                const icon = document.getElementById('dropdownIcon');
+
+                dropdown.classList.remove('dropdown-open', 'slide-down');
+                dropdown.classList.add('dropdown-closed');
+                icon.style.transform = 'rotate(0deg)';
+                this.isDropdownOpen = false;
+            }
+
+            renderStats() {
+                this.renderStatsOverview();
+                this.renderStatsTable();
+            }
+
+            renderStatsOverview() {
+                const overview = document.getElementById('statsOverview');
+
+                // Only add fade-in class on initial load
+                if (this.isInitialLoad) {
+                    overview.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8 fade-in-initial';
+                }
+
+                overview.innerHTML = '';
+
+                if (this.allStats.length === 0) return;
+
+                const totalContainers = this.allStats.length;
+                const avgCpu = this.allStats.reduce((sum, stat) => sum + parseFloat(stat.CPUPerc), 0) / totalContainers;
+                const totalMemory = this.allStats.reduce((sum, stat) => {
+                    const memUsage = stat.MemUsage.split(' / ')[0];
+                    return sum + parseFloat(memUsage);
+                }, 0);
+                const totalPids = this.allStats.reduce((sum, stat) => sum + parseInt(stat.PIDs), 0);
+
+                const cards = [
+                    { title: 'Total Containers', value: totalContainers, icon: 'fas fa-cubes', color: 'blue', gradient: 'from-blue-500 to-blue-600' },
+                    { title: 'Avg CPU Usage', value: `${avgCpu.toFixed(2)}%`, icon: 'fas fa-microchip', color: 'red', gradient: 'from-red-500 to-red-600' },
+                    { title: 'Total Memory', value: `${totalMemory.toFixed(1)}MiB`, icon: 'fas fa-memory', color: 'green', gradient: 'from-green-500 to-green-600' },
+                    { title: 'Total PIDs', value: totalPids, icon: 'fas fa-list-ol', color: 'purple', gradient: 'from-purple-500 to-purple-600' }
+                ];
+
+                cards.forEach(card => {
+                    const div = document.createElement('div');
+                    div.className = `bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 sm:p-6 stat-card relative overflow-hidden`;
+                    div.innerHTML = `
+                        <div class="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br ${card.gradient} opacity-10 rounded-full transform translate-x-8 -translate-y-8"></div>
+                        <div class="relative">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600 dark:text-gray-400">${card.title}</p>
+                                    <p class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">${card.value}</p>
+                                </div>
+                                <div class="p-3 bg-gradient-to-br ${card.gradient} rounded-full">
+                                    <i class="${card.icon} text-white text-lg sm:text-xl"></i>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    overview.appendChild(div);
+                });
+            }
+
+            renderStatsTable() {
+                const container = document.getElementById('statsTableBody');
+                container.innerHTML = '';
+
+                this.allStats.forEach((stat, index) => {
+                    const cpuTrend = this.getTrendDirection(this.cpuHistory[stat.Name]);
+                    const memTrend = this.getTrendDirection(this.memoryHistory[stat.Name]);
+
+                    const row = document.createElement('div');
+                    row.className = 'grid grid-cols-[220px_220px_220px_200px_200px_80px] items-center text-sm text-gray-900 dark:text-white py-2';
+
+                    row.innerHTML = `
+            <div class="px-4">
+                <div class="flex items-center">
+                    <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mr-3">
+                        <i class="fab fa-docker text-white text-sm"></i>
+                    </div>
+                    <div>
+                        <div class="font-medium">${stat.Name}</div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400">${stat.ID.substring(0, 12)}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-4">
+                <div class="flex items-center space-x-2">
+                    <div class="mini-chart-container">
+                        <canvas id="cpu-chart-${index}"></canvas>
+                    </div>
+                    <div class="metric-trend flex items-center gap-1">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${this.getCpuColorClass(stat.CPUPerc)}">
+                            ${stat.CPUPerc}
+                        </span>
+                        <i class="fas fa-arrow-${cpuTrend.icon} text-xs ${cpuTrend.class}"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-4">
+                <div class="flex items-center space-x-2">
+                    <div class="mini-chart-container">
+                        <canvas id="mem-chart-${index}"></canvas>
+                    </div>
+                    <div class="metric-trend flex flex-col">
+                        <div>${stat.MemUsage.split(' / ')[0]}</div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400">${stat.MemPerc}</div>
+                        <i class="fas fa-arrow-${memTrend.icon} text-xs ${memTrend.class}"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-4 hidden lg:block">
+                <div class="flex items-center space-x-1">
+                    <i class="fas fa-network-wired text-blue-500 text-xs"></i>
+                    <div class="io-value">
+                        <div>${this.formatIOValue(stat.NetIO.split(' / ')[0])}</div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400">${this.formatIOValue(stat.NetIO.split(' / ')[1])}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-4 hidden lg:block">
+                <div class="flex items-center space-x-1">
+                    <i class="fas fa-hdd text-orange-500 text-xs"></i>
+                    <div class="io-value">
+                        <div>${this.formatIOValue(stat.BlockIO.split(' / ')[0])}</div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400">${this.formatIOValue(stat.BlockIO.split(' / ')[1])}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-4">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                    ${stat.PIDs}
+                </span>
+            </div>
+        `;
+
+                    container.appendChild(row);
+
+                    // Chart rendering after DOM update
+                    setTimeout(() => {
+                        this.createMiniChart(`cpu-chart-${index}`, this.cpuHistory[stat.Name] || [], '#ef4444');
+                        this.createMiniChart(`mem-chart-${index}`, this.memoryHistory[stat.Name] || [], '#10b981');
+                    }, 0);
+                });
+            }
+
+            formatIOValue(value) {
+                // Convert bytes to more readable format
+                const match = value.match(/^([\d.]+)(\w+)$/);
+                if (!match) return value;
+
+                const num = parseFloat(match[1]);
+                const unit = match[2];
+
+                // Convert to appropriate unit
+                if (unit === 'B' && num >= 1024) {
+                    return `${(num / 1024).toFixed(1)}KB`;
+                } else if (unit === 'kB' && num >= 1024) {
+                    return `${(num / 1024).toFixed(1)}MB`;
+                } else if (unit === 'MB' && num >= 1024) {
+                    return `${(num / 1024).toFixed(1)}GB`;
+                }
+
+                return value;
+            }
+
+            createMiniChart(canvasId, data, color) {
+                const canvas = document.getElementById(canvasId);
+                if (!canvas) return;
+
+                const ctx = canvas.getContext('2d');
+
+                if (this.miniCharts[canvasId]) {
+                    this.miniCharts[canvasId].destroy();
+                }
+
+                this.miniCharts[canvasId] = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.map((_, i) => i),
+                        datasets: [{
+                            data: data,
+                            borderColor: color,
+                            backgroundColor: color + '20',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 0,
+                            pointHoverRadius: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            x: { display: false },
+                            y: { display: false }
+                        },
+                        elements: {
+                            point: { radius: 0 }
+                        },
+                        interaction: {
+                            intersect: false
+                        },
+                        animation: {
+                            duration: 0 // Disable animations for smooth updates
+                        }
+                    }
+                });
+            }
+
+            getTrendDirection(history) {
+                if (!history || history.length < 2) {
+                    return { icon: 'right', class: 'trend-stable' };
+                }
+
+                const recent = history.slice(-2);
+                const diff = recent[1] - recent[0];
+
+                if (diff > 0.1) return { icon: 'up', class: 'trend-up' };
+                if (diff < -0.1) return { icon: 'down', class: 'trend-down' };
+                return { icon: 'right', class: 'trend-stable' };
+            }
+
+            getCpuColorClass(cpuPerc) {
+                const cpu = parseFloat(cpuPerc);
+                if (cpu < 10) return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+                if (cpu < 50) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+                return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+            }
+
+            setupCharts() {
+                const isDark = document.documentElement.classList.contains('dark');
+                const textColor = isDark ? '#f9fafb' : '#1f2937';
+                const gridColor = isDark ? '#374151' : '#e5e7eb';
+
+                // CPU Chart
+                const cpuCtx = document.getElementById('cpuChart').getContext('2d');
+                this.cpuChart = new Chart(cpuCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            data: [],
+                            backgroundColor: [
+                                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+                                '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'
+                            ],
+                            borderWidth: 2,
+                            borderColor: isDark ? '#1f2937' : '#ffffff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { color: textColor }
+                            }
+                        },
+                        animation: {
+                            duration: this.isInitialLoad ? 1000 : 0
+                        }
+                    }
+                });
+
+                // Memory Chart
+                const memCtx = document.getElementById('memoryChart').getContext('2d');
+                this.memoryChart = new Chart(memCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Memory Usage (MiB)',
+                            data: [],
+                            backgroundColor: 'rgba(34, 197, 94, 0.8)',
+                            borderColor: 'rgba(34, 197, 94, 1)',
+                            borderWidth: 1,
+                            borderRadius: 8
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { labels: { color: textColor } }
+                        },
+                        scales: {
+                            x: {
+                                ticks: { color: textColor },
+                                grid: { color: gridColor }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                ticks: { color: textColor },
+                                grid: { color: gridColor }
+                            }
+                        },
+                        animation: {
+                            duration: this.isInitialLoad ? 1000 : 0
+                        }
+                    }
+                });
+
+                // Network I/O Chart
+                const networkCtx = document.getElementById('networkChart').getContext('2d');
+                this.networkChart = new Chart(networkCtx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: []
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: { color: textColor }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: { color: textColor },
+                                grid: { color: gridColor }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Bytes',
+                                    color: textColor
+                                },
+                                ticks: { color: textColor },
+                                grid: { color: gridColor }
+                            }
+                        },
+                        animation: {
+                            duration: this.isInitialLoad ? 1000 : 0
+                        }
+                    }
+                });
+
+                // Block I/O Chart
+                const blockCtx = document.getElementById('blockChart').getContext('2d');
+                this.blockChart = new Chart(blockCtx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: []
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: { color: textColor }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: { color: textColor },
+                                grid: { color: gridColor }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Bytes',
+                                    color: textColor
+                                },
+                                ticks: { color: textColor },
+                                grid: { color: gridColor }
+                            }
+                        },
+                        animation: {
+                            duration: this.isInitialLoad ? 1000 : 0
+                        }
+                    }
+                });
+            }
+
+            updateCharts() {
+                if (this.allStats.length === 0) return;
+
+                // Update CPU Chart
+                const cpuLabels = this.allStats.map(stat => stat.Name);
+                const cpuData = this.allStats.map(stat => parseFloat(stat.CPUPerc));
+
+                this.cpuChart.data.labels = cpuLabels;
+                this.cpuChart.data.datasets[0].data = cpuData;
+                this.cpuChart.update('none');
+
+                // Update Memory Chart
+                const memLabels = this.allStats.map(stat => stat.Name);
+                const memData = this.allStats.map(stat => {
+                    const memUsage = stat.MemUsage.split(' / ')[0];
+                    return parseFloat(memUsage);
+                });
+
+                this.memoryChart.data.labels = memLabels;
+                this.memoryChart.data.datasets[0].data = memData;
+                this.memoryChart.update('none');
+
+                // Update Network I/O Chart
+                this.updateLineChart(this.networkChart, this.networkHistory, 'Network I/O');
+
+                // Update Block I/O Chart
+                this.updateLineChart(this.blockChart, this.blockHistory, 'Block I/O');
+            }
+
+            showError(message) {
+                console.error(message);
+            }
+
+            async refreshData() {
+                const refreshBtn = document.getElementById('refreshBtn');
+                const icon = refreshBtn.querySelector('i');
+
+                icon.classList.add('fa-spin');
+
+                try {
+                    await this.loadContainers();
+                    if (this.selectedContainers.length > 0) {
+                        await this.loadSelectedStats();
+                    } else {
+                        await this.loadAllStats();
+                    }
+                } finally {
+                    icon.classList.remove('fa-spin');
+                }
+            }
+
+            startAutoRefresh() {
+                if (this.refreshInterval) clearInterval(this.refreshInterval);
+                if (this.countdownInterval) clearInterval(this.countdownInterval);
+
+                this.refreshInterval = setInterval(() => {
+                    if (this.selectedContainers.length > 0) {
+                        this.loadSelectedStats();
+                    } else {
+                        this.loadAllStats();
+                    }
+                    this.refreshCountdown = 10;
+                }, 10000);
+
+                this.countdownInterval = setInterval(() => {
+                    this.refreshCountdown--;
+                    document.getElementById('nextRefresh').textContent = `Next refresh in: ${this.refreshCountdown}s`;
+
+                    if (this.refreshCountdown <= 0) {
+                        this.refreshCountdown = 10;
+                    }
+                }, 1000);
+            }
+
+            showSkeletons(show) {
+                const elements = [
+                    { skeleton: 'statsOverviewSkeleton', content: 'statsOverview' },
+                    { skeleton: 'tableBodySkeleton', content: 'statsTableBody' },
+                    { skeleton: 'cpuChartSkeleton', content: 'cpuChart' },
+                    { skeleton: 'memoryChartSkeleton', content: 'memoryChart' },
+                    { skeleton: 'networkChartSkeleton', content: 'networkChart' },
+                    { skeleton: 'blockChartSkeleton', content: 'blockChart' }
+                ];
+
+                elements.forEach(({ skeleton, content }) => {
+                    const skeletonEl = document.getElementById(skeleton);
+                    const contentEl = document.getElementById(content);
+
+                    if (show) {
+                        if (skeletonEl) skeletonEl.classList.remove('hidden');
+                        if (contentEl) contentEl.style.display = 'grid';
+                    } else {
+                        if (skeletonEl) skeletonEl.classList.add('hidden');
+                        if (contentEl) contentEl.style.display = 'grid';
+                    }
+                });
+            }
+
+            parseIOValue(ioString) {
+                const parts = ioString.split(' / ');
+                const input = this.parseSize(parts[0]);
+                const output = this.parseSize(parts[1]);
+                return { input, output, total: input + output };
+            }
+
+            parseSize(sizeString) {
+                const units = { 'B': 1, 'kB': 1024, 'MB': 1024 * 1024, 'GB': 1024 * 1024 * 1024 };
+                const match = sizeString.match(/^([\d.]+)(\w+)$/);
+                if (!match) return 0;
+
+                const value = parseFloat(match[1]);
+                const unit = match[2];
+                return value * (units[unit] || 1);
+            }
+
+            updateHistory(stats) {
+                const timestamp = new Date().toLocaleTimeString();
+
+                stats.forEach(stat => {
+                    const containerName = stat.Name;
+
+                    if (!this.networkHistory[containerName]) {
+                        this.networkHistory[containerName] = { timestamps: [], data: [] };
+                    }
+                    if (!this.blockHistory[containerName]) {
+                        this.blockHistory[containerName] = { timestamps: [], data: [] };
+                    }
+                    if (!this.cpuHistory[containerName]) {
+                        this.cpuHistory[containerName] = [];
+                    }
+                    if (!this.memoryHistory[containerName]) {
+                        this.memoryHistory[containerName] = [];
+                    }
+
+                    const networkIO = this.parseIOValue(stat.NetIO);
+                    const blockIO = this.parseIOValue(stat.BlockIO);
+                    const cpuUsage = parseFloat(stat.CPUPerc);
+                    const memUsage = parseFloat(stat.MemUsage.split(' / ')[0]);
+
+                    this.networkHistory[containerName].timestamps.push(timestamp);
+                    this.networkHistory[containerName].data.push(networkIO.total);
+
+                    this.blockHistory[containerName].timestamps.push(timestamp);
+                    this.blockHistory[containerName].data.push(blockIO.total);
+
+                    this.cpuHistory[containerName].push(cpuUsage);
+                    this.memoryHistory[containerName].push(memUsage);
+
+                    const maxPoints = 20;
+                    [this.networkHistory[containerName], this.blockHistory[containerName]].forEach(history => {
+                        if (history.data.length > maxPoints) {
+                            history.timestamps.shift();
+                            history.data.shift();
+                        }
+                    });
+
+                    [this.cpuHistory[containerName], this.memoryHistory[containerName]].forEach(history => {
+                        if (history.length > maxPoints) {
+                            history.shift();
+                        }
+                    });
+                });
+            }
+
+            updateLastUpdated() {
+                const now = new Date().toLocaleTimeString();
+                document.getElementById('lastUpdated').textContent = `Last updated: ${now}`;
+            }
+
+            updateLineChart(chart, history, label) {
+                const colors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'];
+                const datasets = [];
+                let colorIndex = 0;
+
+                let allTimestamps = [];
+                Object.values(history).forEach(containerHistory => {
+                    if (containerHistory.timestamps && containerHistory.timestamps.length > allTimestamps.length) {
+                        allTimestamps = [...containerHistory.timestamps];
+                    }
+                });
+
+                Object.keys(history).forEach(containerName => {
+                    const containerHistory = history[containerName];
+                    if (containerHistory.data && containerHistory.data.length > 0) {
+                        datasets.push({
+                            label: containerName,
+                            data: containerHistory.data,
+                            borderColor: colors[colorIndex % colors.length],
+                            backgroundColor: colors[colorIndex % colors.length] + '20',
+                            fill: false,
+                            tension: 0.4
+                        });
+                        colorIndex++;
+                    }
+                });
+
+                chart.data.labels = allTimestamps;
+                chart.data.datasets = datasets;
+                chart.update('none');
+            }
+        }
+
+        // Initialize the application
+        const dockerMonitor = new DockerMonitor();
+    </script>
+</body>
+
+</html>
