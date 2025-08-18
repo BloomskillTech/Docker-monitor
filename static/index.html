@@ -461,6 +461,28 @@
 
     <script>
         class DockerMonitor {
+            // Format uptime in seconds to human-readable string
+            formatUptime(uptime) {
+                if (!uptime) return '-';
+                const startTime = new Date(uptime);
+                const now = new Date();
+                const diff = Math.floor((now - startTime) / 1000); // Difference in seconds
+                if (isNaN(diff) || diff < 0) return '-';
+
+                const days = Math.floor(diff / 86400);
+                let seconds = diff % 86400;
+                const hours = Math.floor(seconds / 3600);
+                seconds %= 3600;
+                const minutes = Math.floor(seconds / 60);
+                seconds %= 60;
+
+                let result = '';
+                if (days > 0) result += days + 'd ';
+                if (hours > 0 || days > 0) result += hours + 'h ';
+                if (minutes > 0 || hours > 0 || days > 0) result += minutes + 'm ';
+                result += seconds + 's';
+                return result.trim();
+            }
             constructor() {
                 this.baseUrl = '';
                 this.containers = [];
@@ -791,16 +813,37 @@
 
                 const totalContainers = this.allStats.length;
                 const avgCpu = this.allStats.reduce((sum, stat) => sum + parseFloat(stat.CPUPerc), 0) / totalContainers;
+
+                // Helper to parse memory string to MiB
+                function parseMemValue(memStr) {
+                    const match = memStr.trim().match(/^([\d.]+)([KMG]i?B)$/i);
+                    if (!match) return 0;
+                    const value = parseFloat(match[1]);
+                    const unit = match[2].toUpperCase();
+                    console.log(unit);
+                    if (unit === "GIB") return value * (1024 * 1024 * 1024);
+                    if (unit === "MIB") return value * (1024 * 1024);
+                    if (unit === "KIB") return value * 1024;
+                    return 0;
+                }
+
                 const totalMemory = this.allStats.reduce((sum, stat) => {
                     const memUsage = stat.MemUsage.split(' / ')[0];
-                    return sum + parseFloat(memUsage);
+                    console.log(memUsage);
+                    return sum + parseMemValue(memUsage);
                 }, 0);
                 const totalPids = this.allStats.reduce((sum, stat) => sum + parseInt(stat.PIDs), 0);
-
+                console.log(`Total Memory: ${totalMemory}`);
                 const cards = [
                     { title: 'Total Containers', value: totalContainers, icon: 'fas fa-cubes', color: 'blue', gradient: 'from-blue-500 to-blue-600' },
                     { title: 'Avg CPU Usage', value: `${avgCpu.toFixed(2)}%`, icon: 'fas fa-microchip', color: 'red', gradient: 'from-red-500 to-red-600' },
-                    { title: 'Total Memory', value: `${totalMemory.toFixed(1)}MiB`, icon: 'fas fa-memory', color: 'green', gradient: 'from-green-500 to-green-600' },
+                    {
+                        title: 'Total Memory',
+                        value: `${totalMemory >= 1024 ? (totalMemory / 1024 >= 1024 ? (totalMemory / 1024 / 1024 / 1024).toFixed(1) + ' GB' : (totalMemory / 1024 / 1024).toFixed(1) + ' MB') : (totalMemory / 1024).toFixed(1) + ' KB'}`,
+                        icon: 'fas fa-memory',
+                        color: 'green',
+                        gradient: 'from-green-500 to-green-600'
+                    },
                     { title: 'Total PIDs', value: totalPids, icon: 'fas fa-list-ol', color: 'purple', gradient: 'from-purple-500 to-purple-600' }
                 ];
 
@@ -845,6 +888,8 @@
                     <div>
                         <div class="font-medium">${stat.Name}</div>
                         <div class="text-xs text-gray-500 dark:text-gray-400">${stat.ID.substring(0, 12)}</div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400">${this.formatUptime(stat.uptime)}</div>
+
                     </div>
                 </div>
             </div>
