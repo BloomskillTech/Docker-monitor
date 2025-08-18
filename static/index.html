@@ -820,7 +820,7 @@
                     if (!match) return 0;
                     const value = parseFloat(match[1]);
                     const unit = match[2].toUpperCase();
-                    console.log(unit);
+
                     if (unit === "GIB") return value * (1024 * 1024 * 1024);
                     if (unit === "MIB") return value * (1024 * 1024);
                     if (unit === "KIB") return value * 1024;
@@ -829,11 +829,11 @@
 
                 const totalMemory = this.allStats.reduce((sum, stat) => {
                     const memUsage = stat.MemUsage.split(' / ')[0];
-                    console.log(memUsage);
+
                     return sum + parseMemValue(memUsage);
                 }, 0);
                 const totalPids = this.allStats.reduce((sum, stat) => sum + parseInt(stat.PIDs), 0);
-                console.log(`Total Memory: ${totalMemory}`);
+
                 const cards = [
                     { title: 'Total Containers', value: totalContainers, icon: 'fas fa-cubes', color: 'blue', gradient: 'from-blue-500 to-blue-600' },
                     { title: 'Avg CPU Usage', value: `${avgCpu.toFixed(2)}%`, icon: 'fas fa-microchip', color: 'red', gradient: 'from-red-500 to-red-600' },

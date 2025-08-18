@@ -29,6 +29,26 @@ def get_docker_stats(name: Optional[str] = None):
             "docker", "stats", "--no-stream", "--format", "{{json .}}"
         ]).decode("utf-8").strip().split("\n")
         stats = [json.loads(line) for line in result]
+
+        # Fetch container running time
+        container_names = subprocess.check_output([
+            "docker", "ps", "-a", "--format", "{{.Names}}"
+        ]).decode("utf-8").strip().split("\n")
+        if container_names:
+            inspect_result = subprocess.check_output([
+                "docker", "inspect", "--format", "{{.Name}} {{.State.StartedAt}}"
+            ] + container_names).decode("utf-8").strip().split("\n")
+            running_times = {
+                line.split()[0].strip("/"): line.split()[1] for line in inspect_result
+            }
+        else:
+            running_times = {}
+
+        for container in stats:
+            container_name = container.get("Name")
+            if container_name in running_times:
+                container["uptime"] = running_times[container_name]
+
         if name:
             for container in stats:
                 if container.get("Name") == name:
