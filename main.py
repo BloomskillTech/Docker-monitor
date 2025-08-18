@@ -3,6 +3,7 @@ import json
 from typing import Optional
 from fastapi import FastAPI
 import uvicorn
+import docker
 from fastapi.responses import FileResponse
 
 app = FastAPI(
@@ -58,6 +59,29 @@ def get_docker_stats(name: Optional[str] = None):
 
     except subprocess.CalledProcessError as e:
         return {"error": "Failed to fetch docker stats", "details": str(e)}
+    
+@app.get("/docker/realtime")
+def get_docker_realtime_stats(name: Optional[str] = None):
+    client = docker.from_env()
+    try:
+        container = client.containers.get(name)
+        print(f"Container found: {container.name}")
+    except docker.errors.NotFound:
+        return {"error": "Container not found"}
+    except docker.errors.APIError as e:
+        return {"error": "Docker API error", "details": str(e)}
+    
+    network_value = {"rx": 0, "tx": 0}
 
+    for stats in container.stats(decode=True, stream=True):
+        networks = stats.get("networks", {})
+        rx_bytes = sum(interface["rx_bytes"] for interface in networks.values())
+        tx_bytes = sum(interface["tx_bytes"] for interface in networks.values())
+        network_value["rx"], network_value["tx"] = rx_bytes, tx_bytes
+
+        return {
+            "Downloads": (network_value["rx"]),
+            "Uploads": (network_value["tx"]),
+        }
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000)
