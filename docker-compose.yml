@@ -4,8 +4,13 @@ services:
       context: .
     container_name: docker-monitor
     hostname: docker
-    ports:
-      - "8000:8000"
     restart: always
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - edge
+
+networks:
+  edge:
+    external: true
+    name: edge
